@@ -1,50 +1,49 @@
-const express = require("express");
-const fetch = require("node-fetch");
-const cors = require("cors"); // Best practice for CORS
+import express from "express";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import cors from "cors";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-
-app.use(cors()); // This handles the "Allow-Origin" for you automatically
+app.use(cors());
 app.use(express.json());
 
-app.get("/", (req, res) => {
-  res.json({ status: "Picachu AI Backend is running!" });
-});
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-app.post("/api/gemini", async (req, res) => {
+const systemPrompt = `
+You are a helpful, friendly assistant who talks like a real human.
+
+Rules you must always follow:
+- Never use ** (stars) or any markdown formatting
+- Never use bold, italics, or headers
+- Always reply in bullet points using the • symbol
+- Keep answers short and to the point
+- Sound natural, warm, and conversational
+- Each bullet point should be one clear idea
+- Maximum 5 to 6 bullet points per answer
+`;
+
+app.post("/chat", async (req, res) => {
   try {
-    // FIX 1: Look for "message" (matching what your frontend sends)
-    const { message } = req.body; 
-    
-    if (!message) return res.status(400).json({ error: "No message provided" });
-    
-    // Note: If 'gemini-2.5-flash' doesn't work, use 'gemini-1.5-flash'
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: message }] }]
-        })
-      }
-    );
-    
-    const data = await response.json();
-    
-    // Check if Gemini returned an error
-    if (data.error) {
-        return res.status(500).json({ error: data.error.message });
-    }
+    const { message } = req.body;
 
-    // Send the raw data back to the frontend
-    res.json(data);
-    
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      systemInstruction: systemPrompt,
+    });
+
+    const result = await model.generateContent(message);
+    const response = result.response.text();
+
+    res.json({ reply: response });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Something went wrong" });
   }
 });
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(3000, () => {
+  console.log("Server running on port 3000");
+});
