@@ -24,12 +24,12 @@ Rules you must always follow:
 - Maximum 5 to 6 bullet points per answer
 `;
 
-app.post("/chat", async (req, res) => {
+app.post("/api/gemini", async (req, res) => {
   try {
     const { message } = req.body;
 
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.5-flash-preview-04-17",
       systemInstruction: systemPrompt,
     });
 
